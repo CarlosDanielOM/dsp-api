@@ -28,6 +28,8 @@ const buildingSchema = new Schema({
     updated_at: { type: Date, default: Date.now },
 });
 
+
+
 const Building = model('Building', buildingSchema);
 
 export default Building;
