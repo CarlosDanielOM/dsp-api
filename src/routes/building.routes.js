@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Building from '../../models/building.model.js';
+import { createCode, voteOnCode } from '../../services/codes.js';
 
 const router = Router();
 
@@ -55,6 +56,10 @@ router.patch('/:id', async (req, res) => {
         return res.status(500).json({ error: true, message: 'Failed to get building' });
     });
 
+    if (!building) {
+        return res.status(404).json({ error: true, message: 'Building not found' });
+    }
+
     if(body.address) building.address = body.address;
     if(body.name) building.name = body.name;
     if(body.notes) building.notes = body.notes;
@@ -66,7 +71,7 @@ router.patch('/:id', async (req, res) => {
         building.locker_codes.push(...body.locker_codes);
     }
 
-    building.save().catch(err => {
+    await building.save().catch(err => {
         return res.status(500).json({ error: true, message: 'Failed to update building' });
     });
 
@@ -81,36 +86,100 @@ router.delete('/:id', async (req, res) => {
         return res.status(500).json({ error: true, message: 'Failed to delete building' });
     });
     
+    if (!building) {
+        return res.status(404).json({ error: true, message: 'Building not found' });
+    }
+    
     return res.status(200).json({ error: false, data: building });
 });
 
-router.post('/:id/code', async (req, res) => {
-    const { id } = req.params;
-    const { code, notes } = req.body;
-    
-    if (!code) {
-        return res.status(400).json({ error: true, message: 'Code is required' });
+router.post('/:buildingId/code', async (req, res) => {
+    const { buildingId } = req.params;
+    const { code, notes, type, dispatcherId } = req.body;
+    if (!code || !type) {
+        return res.status(400).json({ error: true, message: 'Code and type are required' });
     }
-    
+    const newCode = await createCode(buildingId, req.dispatcherId, { code, notes }, type).catch(err => {
+        return res.status(500).json({ error: true, message: 'Failed to create code' });
+    });
+
+    return res.status(201).json({ error: false, data: newCode });
 });
 
-router.patch('/:id/code/:codeId', async (req, res) => {
-    const { id, codeId } = req.params;
-    const { code, notes } = req.body;
+router.patch('/:buildingId/code/:codeId', async (req, res) => {
+    const { buildingId, codeId } = req.params;
+    const { code, notes, type } = req.body;
     
     if (!code || !notes) {
         return res.status(400).json({ error: true, message: 'Code and notes are required' });
     }
     
+    if (!type || (type !== 'access' && type !== 'locker')) {
+        return res.status(400).json({ error: true, message: 'Type must be either "access" or "locker"' });
+    }
+    
+    const building = await Building.findById(buildingId).catch(err => {
+        return res.status(500).json({ error: true, message: 'Failed to get building' });
+    });
+    
+    if (!building) {
+        return res.status(404).json({ error: true, message: 'Building not found' });
+    }
+    
+    const codeField = type === 'access' ? 'access_codes' : 'locker_codes';
+    const codeToUpdate = building[codeField].id(codeId);
+    
+    if (!codeToUpdate) {
+        return res.status(404).json({ error: true, message: 'Code not found' });
+    }
+    
+    codeToUpdate.code = code;
+    codeToUpdate.notes = notes;
+    codeToUpdate.updated_at = new Date();
+    
+    await building.save().catch(err => {
+        return res.status(500).json({ error: true, message: 'Failed to update code' });
+    });
+    
+    return res.status(200).json({ error: false, data: building });
 });
 
-router.delete('/:id/code/:codeId', async (req, res) => {
-    const { id, codeId } = req.params;
+router.patch('/:buildingId/code/:codeId/vote', async (req, res) => {
+    const { buildingId, codeId } = req.params;
+    const { type, isUpvote } = req.body;
+    if (!type || isUpvote === undefined) {
+        return res.status(400).json({ error: true, message: 'Type and isUpvote are required' });
+    }
+    const updatedBuilding = await voteOnCode(buildingId, codeId, type, isUpvote).catch(err => {
+        return res.status(500).json({ error: true, message: 'Failed to vote on code' });
+    });
+
+    return res.status(200).json({ error: false, data: updatedBuilding });
+});
+
+router.delete('/:buildingId/code/:codeId', async (req, res) => {
+    const { buildingId, codeId } = req.params;
+    const { type } = req.body;
     
-    const building = await Building.findByIdAndUpdate(id, { $pull: { access_codes: { _id: codeId } } }).catch(err => {
+    if (!type || (type !== 'access' && type !== 'locker')) {
+        return res.status(400).json({ error: true, message: 'Type must be either "access" or "locker"' });
+    }
+    
+    const codeField = type === 'access' ? 'access_codes' : 'locker_codes';
+    
+    const building = await Building.findByIdAndUpdate(
+        buildingId, 
+        { $pull: { [codeField]: { _id: codeId } } },
+        { new: true }
+    ).catch(err => {
         return res.status(500).json({ error: true, message: 'Failed to delete code' });
     });
     
+    if (!building) {
+        return res.status(404).json({ error: true, message: 'Building not found' });
+    }
+    
+    return res.status(200).json({ error: false, data: building });
 });
 
 export default router;

@@ -65,7 +65,7 @@ export const voteOnCode = async (buildingId, codeId, type, isUpvote) => {
         }
 
         if(dispatcher.total_score >= 0) {
-            dispatcher.trust_score = Math.round((dispatcher.score / dispatcher.total_score) * 100);
+            dispatcher.trust_score = Math.max(0, Math.min(100, Math.round((dispatcher.score / dispatcher.total_score) * 100)));
         } else {
             dispatcher.trust_score = 0;
         }
@@ -76,4 +76,16 @@ export const voteOnCode = async (buildingId, codeId, type, isUpvote) => {
     }
 
     //? Delete if trust under 35%
+    if(code.trust_score < 35 && code.total_votes >= 10) {
+        await code.deleteOne().catch(err => {
+            throw new Error('Failed to delete code');
+        });
+        console.log(`code #{code.code} deleted because of low trust score, uploaded by ${dispatcher.name}`)
+    }
+
+    await building.save().catch(err => {
+        throw new Error('Failed to save building');
+    });
+
+    return building;
 }
