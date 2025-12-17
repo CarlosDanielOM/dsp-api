@@ -4,6 +4,7 @@ import dispatcherRoute from './routes/dispatcher.routes.js';
 import buildingRoute from './routes/building.routes.js';
 import { connectToMongo } from '../utils/db/mongo.js';
 import { connectToDragonflydb } from '../utils/db/dragonflydb.js';
+import cors from 'cors';
 dotenv.config();
 
 await connectToMongo()
@@ -15,6 +16,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
 app.use('/dispatchers', dispatcherRoute);
 app.use('/buildings', buildingRoute);
