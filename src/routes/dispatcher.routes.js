@@ -12,9 +12,7 @@ router.get('/', async (req, res) => {
 
         return res.status(200).json({ error: false, data: dispatcher });
     } else {
-        const dispatchers = await Dispatcher.find().catch(err => {
-            return res.status(500).json({ error: true, message: 'Failed to get dispatchers' });
-        });
+        const dispatchers = await Dispatcher.find() ?? [];
 
         return res.status(200).json({ error: false, data: dispatchers });
     }
