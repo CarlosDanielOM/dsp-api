@@ -8,9 +8,7 @@ services:
     container_name: dsp-api
     environment:
       - PORT=3000
-      # If your MongoDB requires authentication, use:
-      # MONGO_URI=mongodb://username:password@mongodb:27017/dsp?authSource=admin
-      - MONGO_URI=mongodb://admin:MongoPass_201@mongodb:27017/dsp
+      - MONGO_URI=mongodb://admin:MongoPass_201@mongodb:27017/dsp?authSource=admin
       - DRAGONFLYDB_URI=redis://dragonfly:6379
     restart: unless-stopped
     networks:
