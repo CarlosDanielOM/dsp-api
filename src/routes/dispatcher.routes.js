@@ -26,7 +26,15 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: true, message: 'Name and pin are required' });
     }
     
-    const dispatcher = await Dispatcher.create({ name, pin }).catch(err => {
+    // Check if any admin dispatcher exists
+    const adminExists = await Dispatcher.findOne({ admin: true }).catch(err => {
+        return res.status(500).json({ error: true, message: 'Failed to check for admin dispatcher' });
+    });
+    
+    // Set admin to true if no admin exists, false otherwise
+    const admin = !adminExists;
+    
+    const dispatcher = await Dispatcher.create({ name, pin, admin }).catch(err => {
         return res.status(500).json({ error: true, message: 'Failed to create dispatcher' });
     });
 
