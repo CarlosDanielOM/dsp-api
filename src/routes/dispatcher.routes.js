@@ -57,7 +57,13 @@ router.post('/', async (req, res) => {
         admin = !adminExists;
     }
     
-    const dispatcher = await Dispatcher.create({ name, pin, admin }).catch(err => {
+    const dispatcher = await Dispatcher.create({ 
+        name, 
+        pin, 
+        admin,
+        score: 25,
+        total_score: 100
+    }).catch(err => {
         return res.status(500).json({ error: true, message: 'Failed to create dispatcher' });
     });
 
